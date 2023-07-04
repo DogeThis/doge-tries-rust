@@ -82,7 +82,7 @@ fn inspect_bundle (mut bundle: Bundle) {
             _ => {}
         }
     }
-    bundle.save("hithere").expect("whateve");
+    // bundle.save("hithere").expect("whateve");
     // println!("CAB: {:#?}", cab);
     // println!("Bundle: {:#?}", bundle);
 }
