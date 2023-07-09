@@ -41,6 +41,7 @@ fn main() {
     let dependencies = std::fs::read_to_string(cli.dependencies).expect("Could not read dependencies file");
     let dependencies = toml::from_str::<DependenciesVec>(dependencies.as_str()).expect("Could not parse dependencies file");
 
+    println!("Dependencies understood: {:#?}", dependencies);
 
     match bundle {
         Ok(bundle) => make_bundle_compatible(bundle, cli.output_path, cli.dry_run, dependencies.dependencies),
