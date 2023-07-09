@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.3.10", features = ["derive"] }
 astra_formats = { git = "https://github.com/thane98/astra-formats" }
+toml = "0.7.6"
+serde = "1.0.169"
+serde_derive = "1.0.169"

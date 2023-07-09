@@ -1,0 +1,10 @@
+[[dependencies]]
+path = "StreamingAssets\\aa\\Switch\\fe_assets_customrp\\shaders\\chara\\charastandard.shader.bundle"
+# what to replace
+[dependencies.game_node]
+cab = "CAB-8b98d58e992699f07f87c0943f678979"
+path_id = -3637526271425215770
+
+[dependencies.custom_bundle_node]
+cab = "CAB-237730efbe63b97e4798d3f981576779"
+path_id = 6103793082863834008

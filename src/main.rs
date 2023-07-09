@@ -6,9 +6,15 @@ use astra_formats::{Bundle, BundleFile, Asset, UString};
 
 use std::collections::HashMap;
 
+use serde_derive::Deserialize;
+use toml;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    #[arg(long)]
+    dependencies: PathBuf,
+
     #[arg(short, long)]
     target_bundle_path: PathBuf,
 
@@ -19,16 +25,36 @@ struct Cli {
     dry_run: bool,
 }
 
+// example toml
+// [[dependencies]]
+// path = "StreamingAssets\aa\Switch\fe_assets_customrp\shaders\chara\charastandard.shader.bundle" # not used yet
+// # what to replace
+// custom_bundle_node = { cab = "CAB-237730efbe63b97e4798d3f981576779", path_id = 6103793082863834008 } 
+// # what to change it to
+// game_node = { cab = "CAB-8b98d58e992699f07f87c0943f678979", path_id = -3637526271425215770 }
+
+
 fn main() {
     let cli = Cli::parse();
     let bundle = Bundle::load(cli.target_bundle_path);
+
+    let dependencies = std::fs::read_to_string(cli.dependencies).expect("Could not read dependencies file");
+    let dependencies = toml::from_str::<DependenciesVec>(dependencies.as_str()).expect("Could not parse dependencies file");
+
+
     match bundle {
-        Ok(bundle) => make_bundle_compatible(bundle, cli.output_path, cli.dry_run),
+        Ok(bundle) => make_bundle_compatible(bundle, cli.output_path, cli.dry_run, dependencies.dependencies),
         Err(err) => println!("Error: {}", err),
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct DependenciesVec {
+    dependencies: Vec<Dependency>
+}
+
 #[derive(Debug)]
+#[derive(Deserialize)]
 struct Dependency {
     path: String,
     game_node: DependencyNode,
@@ -36,6 +62,7 @@ struct Dependency {
 }
 
 #[derive(Debug)]
+#[derive(Deserialize)]
 struct DependencyNode {
     cab: String,
     path_id: i64
@@ -47,22 +74,7 @@ impl DependencyNode {
     }
 }
 
-fn make_bundle_compatible (mut bundle: Bundle, output_file: Option<PathBuf>, dry_run: bool) {
-    // Hardcode this for testing
-    let char_standard = Dependency {
-        path: r"StreamingAssets\aa\Switch\fe_assets_customrp\shaders\chara\charastandard.shader.bundle".to_string(),
-        game_node: DependencyNode { // the game's version
-            cab: "CAB-8b98d58e992699f07f87c0943f678979".to_string(),
-            path_id: -3637526271425215770
-        },
-        custom_bundle_node: DependencyNode { // our fake version
-            cab: "CAB-237730efbe63b97e4798d3f981576779".to_string(),
-            path_id: 6103793082863834008
-        }
-    };
-
-    let dependecies_to_fix = vec![char_standard];
-
+fn make_bundle_compatible (mut bundle: Bundle, output_file: Option<PathBuf>, dry_run: bool, dependecies_to_fix: Vec<Dependency>) {
     let cab = bundle.get_cab().unwrap().to_string();
     let mutbundle: Option<&mut BundleFile> = bundle.get_mut(cab.as_str());
 
@@ -95,8 +107,8 @@ fn make_bundle_compatible (mut bundle: Bundle, output_file: Option<PathBuf>, dry
                             } else {
                                 println!("No matching shader dependency found for: {:#?}", shader);
                             }
-                        },     
-                        _ => {},
+                        },
+                        _ => {}
                     }
                 });
             },
