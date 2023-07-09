@@ -13,26 +13,21 @@ use toml;
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[arg(long)]
+    /// toml file with dependencies to patch
     dependencies: PathBuf,
 
     #[arg(short, long)]
+    /// your custom unity bundle you want to patch (this file will be read but not changed)
     target_bundle_path: PathBuf,
 
     #[arg(short, long)]
+    /// output path for the patched bundle
     output_path: Option<PathBuf>,
     
     #[clap(long, short, action)]
+    /// dry run, don't save the bundle, just for testing purposes to see if the dependencies are found
     dry_run: bool,
 }
-
-// example toml
-// [[dependencies]]
-// path = "StreamingAssets\aa\Switch\fe_assets_customrp\shaders\chara\charastandard.shader.bundle" # not used yet
-// # what to replace
-// custom_bundle_node = { cab = "CAB-237730efbe63b97e4798d3f981576779", path_id = 6103793082863834008 } 
-// # what to change it to
-// game_node = { cab = "CAB-8b98d58e992699f07f87c0943f678979", path_id = -3637526271425215770 }
-
 
 fn main() {
     let cli = Cli::parse();
@@ -108,6 +103,17 @@ fn make_bundle_compatible (mut bundle: Bundle, output_file: Option<PathBuf>, dry
                             } else {
                                 println!("No matching shader dependency found for: {:#?}", shader);
                             }
+                           for element in material.saved_properties.text_envs.iter_mut() {
+                            let matching_dependency = dependecies_to_fix.iter().find(|dependency| {
+                                element.1.texture.path_id == dependency.custom_bundle_node.path_id
+                            });
+                            if let Some(match_found) = matching_dependency {
+                                println!("Found a matching texture dependency: {:#?}", match_found);
+                                element.1.texture.path_id = match_found.game_node.path_id;
+                            } else {
+                                println!("No matching texture dependency found for: {:#?}", element.1.texture);
+                            }
+                        }
                         },
                         _ => {}
                     }
