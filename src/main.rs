@@ -2,17 +2,27 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 
-use astra_formats::{Asset, Bundle, BundleFile, UString};
+use astra_formats::{Asset, AssetFile, Bundle, BundleFile, UString};
 
 use std::collections::HashMap;
 
 use serde_derive::Deserialize;
 use toml;
 
+use walkdir::WalkDir;
+
 #[derive(Subcommand)]
 enum Commands {
     /// The old migration method we used to use with a toml file
     MigrateOld(MigrateOldArgs),
+    Crawl(CrawlArgs),
+}
+
+#[derive(Args)]
+struct CrawlArgs {
+    /// Target path of the which will be crawled, contains an aa folder
+    #[arg(short, long)]
+    target_path: PathBuf,
 }
 
 #[derive(Args)]
@@ -63,6 +73,81 @@ fn main() {
                 ),
                 Err(err) => println!("Error: {}", err),
             }
+        }
+        Commands::Crawl(args) => {
+            println!("Crawling: {:#?}", args.target_path);
+            let aa_path = args.target_path.join("aa");
+            let aa_path_exists = std::path::Path::new(&aa_path).exists();
+            if !aa_path_exists {
+                println!("aa folder does not exist, exiting");
+                return;
+            }
+            let mut dependencies: Vec<DependencyNode> = Vec::new();
+
+            for entry in WalkDir::new(&aa_path) {
+                let path = entry.unwrap();
+                // if the path ends in .bundle, let's try to do something with it
+                let name = path.file_name();
+                let name = name.to_str().unwrap();
+                if name.ends_with(".bundle") {
+                    // println!("Found bundle: {}", name);
+                    let bundle = Bundle::load(path.path());
+                    match bundle {
+                        Ok(bundle) => {
+                            // println!("Bundle loaded: {:#?}", bundle.get_cab());
+                            bundle
+                                .files()
+                                .into_iter()
+                                .for_each(|(name, bundle_file)| -> () {
+                                    match bundle_file {
+                                        BundleFile::Assets(hello) => {
+                                            hello.assets.iter().for_each(|asset| match asset {
+                                                // Asset::Material(material) => {
+                                                //     println!("Material: {:#?}", material);
+                                                //     material
+                                                //         .saved_properties
+                                                //         .text_envs
+                                                //         .iter()
+                                                //         .for_each(|(key, value)| {
+                                                //             println!(
+                                                //                 "Key: {:#?}, Value: {:#?}",
+                                                //                 key, value
+                                                //             );
+                                                //         });
+                                                // }
+                                                Asset::Bundle(asset_bundle) => {
+                                                    println!("Bundle: {:#?}", asset_bundle);
+                                                    // asset_bundle.
+
+                                                    let cab = bundle
+                                                        .get_cab()
+                                                        .unwrap()
+                                                        .to_string()
+                                                        .into();
+                                                    let mut path_id = 0;
+                                                    asset_bundle
+                                                        .container_map
+                                                        .items
+                                                        .iter()
+                                                        .for_each(|(key, value)| {
+                                                            path_id = value.asset.path_id;
+                                                        });
+                                                    let dependency =
+                                                        DependencyNode { cab, path_id };
+                                                    dependencies.push(dependency);
+                                                }
+                                                _ => {}
+                                            })
+                                        }
+                                        _ => {}
+                                    }
+                                })
+                        }
+                        Err(err) => println!("Error: {}", err),
+                    }
+                }
+            }
+            println!("Found dependencies: {:#?}", dependencies);
         }
     }
 }
